@@ -29,15 +29,18 @@ export var ActionsStore = Reflux.createStore({
   settings: {
     automaticTime : false,
     time: initialTime(),
-    temperature: 10,
+    temperature: 11,
+    internalTher: 20,
     thermostat: 20,
     presence: false,
     degreePerMilli : 0,
-    realTemp : 10.0,
+    realTemp : 11.0,
+    realTempOrig : 11.0,
     heater : true,
     disabledUI : false,
     client : null,
     lastTimeHuman: 0,
+    lastTimeTempChanged : initialTime(),
     tree: null,
     events : []
   },
@@ -58,6 +61,30 @@ export var ActionsStore = Reflux.createStore({
     });
     console.log('Successfully added ',this.settings.thermostat,' at time.',time, now);
   },
+  sendLearningTemp: function( oldTemp, newTemp, oldTime, newTime) {
+    let now = new Date( this.settings.time.getTime() );
+    let time = Math.floor(now.getTime()/1000)
+    console.log( Math.floor( (newTime-oldTime)/1000 ) );
+    return this.settings.client.addAgentContextOperations(
+      'NI_temperature',
+      [{
+        timestamp : time,
+        diff: {
+          thermostat:this.settings.thermostat,
+          initialTemperature:Math.floor(oldTemp+.5),
+          goalTemperature:Math.floor(newTemp+.5),
+          diff:Math.floor(newTemp-oldTemp),
+          duration:Math.floor( (newTime-oldTime)/1000 )
+        }
+      }],
+      true)
+    .then(() => {
+      console.log( "operations added");
+    })
+    .catch(function(error) {
+      console.log('Error!', error);
+    });
+  },
   sendContexts : function() {
     return this.settings.client.addAgentContextOperations(
       'NI_schedule',
@@ -73,12 +100,13 @@ export var ActionsStore = Reflux.createStore({
     });
   },
   filterEvents : function() {
-
+    console.log( this.settings.events );
   },
   onStartTime : function() {
     this.settings.automaticTime = true;
     this.settings.disabledUI = false;
     this.trigger(this.settings);
+
     this.addContext();
   },
   onSetDisableUI : function() {
@@ -106,16 +134,16 @@ export var ActionsStore = Reflux.createStore({
     {
       if( this.settings.degreePerMilli === 0 )
       {
-        if( this.settings.temperature < this.settings.thermostat )
+        if( this.settings.temperature < this.settings.internalTher )
           this.settings.degreePerMilli = 1.0/(20.0*60.0*1000.0); // 1 degree for 20 minutes;
-        if( this.settings.temperature > this.settings.thermostat )
+        if( this.settings.temperature > this.settings.internalTher )
           this.settings.degreePerMilli = -1.0/(15.0*60.0*1000.0); // 1 degree for 15 minutes;;
       }
-      if( this.settings.realTemp > this.settings.thermostat && this.settings.degreePerMilli > 0)
+      if( this.settings.realTemp > this.settings.internalTher && this.settings.degreePerMilli > 0)
       {
         this.settings.degreePerMilli = 0;
       }
-      if( this.settings.realTemp < this.settings.thermostat && this.settings.degreePerMilli < 0 )
+      if( this.settings.realTemp < this.settings.internalTher && this.settings.degreePerMilli < 0 )
       {
 
         this.settings.degreePerMilli = 0;
@@ -127,7 +155,16 @@ export var ActionsStore = Reflux.createStore({
       if( this.settings.realTemp > 30 )
         this.settings.realTemp =  30;
     }
-    this.settings.temperature = Math.floor( this.settings.realTemp + 0.5);
+    let newTemp = Math.floor( this.settings.realTemp + 0.5);
+    this.settings.temperature = newTemp;
+
+    if( Math.abs( this.settings.realTemp-this.settings.realTempOrig) >= 1 ) {
+      let prev = this.settings.lastTimeTempChanged.getTime()
+      let now = this.settings.time.getTime()
+      this.sendLearningTemp(this.settings.realTempOrig,this.settings.realTemp, prev, now);
+      this.settings.lastTimeTempChanged.setTime( today );
+      this.settings.realTempOrig = this.settings.realTemp;
+    }
   },
 
   onAddTime: function( amount, check ) {
@@ -198,6 +235,8 @@ export var ActionsStore = Reflux.createStore({
       t = 30;
     this.settings.temperature = t;
     this.settings.realTemp = t;
+    this.settings.realTempOrig = t;
+    this.settings.initialTime.setTime( this.settings.time );
     this.trigger(this.settings);
   },
   getThermostat: function() {
@@ -207,14 +246,20 @@ export var ActionsStore = Reflux.createStore({
     if( manual == true ) {
       this.settings.lastTimeHuman = Math.floor(this.settings.time.getTime()/1000);
     }
+    this.settings.lastTimeTempChanged.setTime( this.settings.time );
+    this.settings.realTempOrig = this.settings.realTemp;
     this.settings.thermostat = t;
+    this.settings.internalTher = t;
     if( this.settings.heater == true )
     {
       this.settings.degreePerMilli = 0;
-      if( this.settings.temperature < this.settings.thermostat )
+      if( this.settings.temperature < this.settings.internalTher )
         this.settings.degreePerMilli = 1.0/(20.0*60.0*1000.0); // 1 degree for 20 minutes;
-      if( this.settings.temperature > this.settings.thermostat )
+      if( this.settings.temperature > this.settings.internalTher )
         this.settings.degreePerMilli = -1.0/(15.0*60.0*1000.0); // 1 degree for 15 minutes;;
+      console.log(this.settings.degreePerMilli)
+      this.settings.degreePerMilli *= Math.random()*0.1 + 0.95;
+      console.log(this.settings.degreePerMilli)
     }
     this.trigger(this.settings);
   },
@@ -265,7 +310,26 @@ export var ActionsStore = Reflux.createStore({
     })
    .then((agent) => {
       console.log('Agent ' + agent.id+ ' successfully created!', this);
-
+      return this.settings.client.deleteAgent('NI_temperature')
+      .then(() => {
+        return this.settings.client.createAgent({
+          context : {
+            thermostat: { type :'continuous'},
+            initialTemperature : { type : 'continuous'},
+            goalTemperature: { type : 'continuous'},
+            diff: { type : 'continuous'},
+            duration : { type : 'continuous'},
+          },
+          output : ['duration'],
+          deactivate_sampling : true,
+        },
+        'NI_temperature');
+      })
+      .then((agent) => {
+        console.log('Agent ' + agent.id+ ' successfully created!', this);
+        this.settings.lastTimeTempChanged = new Date()
+        this.settings.lastTimeTempChanged.setTime( this.settings.time);
+      })
     })
     .catch(function(error) {
       console.log('Error!', error);
