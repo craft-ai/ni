@@ -41,8 +41,10 @@ export var ActionsStore = Reflux.createStore({
     client : null,
     lastTimeHuman: 0,
     lastTimeTempChanged : initialTime(),
-    tree: null,
-    events : []
+    treeSchedule: null,
+    treeModel: null,
+    events : [],
+    planning : []
   },
   onStopTime : function() {
     this.settings.automaticTime = false;
@@ -70,7 +72,7 @@ export var ActionsStore = Reflux.createStore({
       [{
         timestamp : time,
         diff: {
-          thermostat:this.settings.thermostat,
+          thermostat:this.settings.internalTher,
           initialTemperature:Math.floor(oldTemp+.5),
           goalTemperature:Math.floor(newTemp+.5),
           diff:Math.floor(newTemp-oldTemp),
@@ -106,7 +108,6 @@ export var ActionsStore = Reflux.createStore({
     this.settings.automaticTime = true;
     this.settings.disabledUI = false;
     this.trigger(this.settings);
-
     this.addContext();
   },
   onSetDisableUI : function() {
@@ -166,16 +167,52 @@ export var ActionsStore = Reflux.createStore({
       this.settings.realTempOrig = this.settings.realTemp;
     }
   },
-
+  durationForDelta: function( goal, current, thermostat ) {
+    let duration = 0;
+    let intermediate = goal;
+    if( goal > current ) {
+      intermediate = current + 1;
+    }
+    else if( goal < current ) {
+      intermediate = current - 1;
+    }
+    while( goal != current ) {
+      let decision = craftai.decide(
+        this.settings.treeModel,
+        {
+          thermostat:thermostat,
+          initialTemperature : current,
+          goalTemperature: intermediate,
+          diff:intermediate-current
+        }
+      );
+      duration += decision.decision.duration;
+      if( goal > current ) {
+        intermediate += 1;
+        current += 1;
+      }
+      else if( goal < current ) {
+        intermediate -= 1;
+        current -= 1;
+      }
+    }
+    return duration;
+  },
   onAddTime: function( amount, check ) {
     let count = Math.floor( amount/500 );
     var today = new Date( this.settings.time.getTime());
     for( var i = 0; i< count; ++i )
       this.localAddTime(500);
+    let mod = amount%500;
+    this.localAddTime(mod);
+
+
     // switched day, do the work :
     // -filter the previous day actions (remove conflicting human/ai action)
     // -send the previous day actions
     // -download the new tree
+    // -compute the planning
+    // -download the heating model tree
     if( today.getDay() != this.settings.time.getDay() ) {
       this.filterEvents();
       this.sendContexts()
@@ -185,19 +222,65 @@ export var ActionsStore = Reflux.createStore({
           Math.floor(today.getTime()/1000) // The timestamp at which the decision tree is retrieved
         )
         .then((tree) => {
-          console.log( tree );
-          this.settings.tree = tree;
+          console.log( "schedule:",tree );
+          this.settings.treeSchedule = tree;
+
+          return this.settings.client.getAgentDecisionTree(
+            'NI_temperature', // The agent id
+            Math.floor(today.getTime()/1000) // The timestamp at which the decision tree is retrieved
+          )
+        })
+        .then((tree) => {
+          console.log( "model:",tree );
+          this.settings.treeModel = tree;
+          let consigne=this.settings.thermostat;
+          today.setTime( this.settings.time )
+          this.settings.planning = []
+          console.log( today.getDay(),this.settings.time.getDay())
+          while( today.getDay() == this.settings.time.getDay() ) {
+            let now =Math.floor(today.getTime() /1000)+2
+            let decision = craftai.decide(
+              this.settings.treeSchedule,
+              {
+                timezone:'+01:00',
+              },
+              new craftai.Time(now)
+            )
+            if( decision.decision.thermostat!=consigne ) {
+              this.settings.planning.push({consigne:decision.decision.thermostat,time:now-2})
+              consigne=decision.decision.thermostat;
+            }
+            // add 1 minute
+            today.setTime( today.getTime()+1000*60 );
+          }
+          console.log("planning:",this.settings.planning)
+          this.settings.planning.reverse()
+          console.log("planning:",this.settings.planning)
         })
       })
     }
 
-    let mod = amount%500;
-    this.localAddTime(mod);
-    this.trigger(this.settings);
-    if( this.settings.tree != null ) {
+    // check if IA should change the internal
+    if( this.settings.treeModel != null ) {
+      if( this.settings.planning.length > 0 ) {
+        let next = this.settings.planning[this.settings.planning.length-1];
+        let duration = this.durationForDelta( next.consigne, this.settings.temperature, this.settings.internalTher );
+        console.log( 'Estimated time to get from : ', this.settings.temperature, ' to : ',next.consigne,' is ', duration);
+        if( next.time-duration <= today.getTime() /1000 ) {
+          console.log( "settings internal", next.consigne );
+          this.onSetInternal(next.consigne)
+        }
+        if( next.time <= today.getTime() / 1000){
+          this.settings.planning.pop()
+        }
+      }
+    }
+
+    // check if IA should change the thermostat
+    if( this.settings.treeSchedule != null ) {
       let now =Math.floor(this.settings.time.getTime() /1000)+2
       let decision = craftai.decide(
-        this.settings.tree,
+        this.settings.treeSchedule,
         {
           timezone:'+01:00',
         },
@@ -211,6 +294,8 @@ export var ActionsStore = Reflux.createStore({
         }
       }
     }
+
+    this.trigger(this.settings);
   },
   onSetDateTime: function( datetime ) {
     var delta = datetime-this.settings.time;
@@ -246,9 +331,13 @@ export var ActionsStore = Reflux.createStore({
     if( manual == true ) {
       this.settings.lastTimeHuman = Math.floor(this.settings.time.getTime()/1000);
     }
+    this.settings.thermostat = t;
+    this.onSetInternal(t);
+    this.trigger(this.settings);
+  },
+  onSetInternal: function(t) {
     this.settings.lastTimeTempChanged.setTime( this.settings.time );
     this.settings.realTempOrig = this.settings.realTemp;
-    this.settings.thermostat = t;
     this.settings.internalTher = t;
     if( this.settings.heater == true )
     {
@@ -257,11 +346,8 @@ export var ActionsStore = Reflux.createStore({
         this.settings.degreePerMilli = 1.0/(20.0*60.0*1000.0); // 1 degree for 20 minutes;
       if( this.settings.temperature > this.settings.internalTher )
         this.settings.degreePerMilli = -1.0/(15.0*60.0*1000.0); // 1 degree for 15 minutes;;
-      console.log(this.settings.degreePerMilli)
       this.settings.degreePerMilli *= Math.random()*0.1 + 0.95;
-      console.log(this.settings.degreePerMilli)
     }
-    this.trigger(this.settings);
   },
   getPresence: function() {
     return this.settings.presence;
@@ -293,7 +379,7 @@ export var ActionsStore = Reflux.createStore({
       url : 'https://integration.craft.ai',
       operationsChunksSize : 1
     });
-    this.settings.client.deleteAgent('NI_schedule')
+    return this.settings.client.deleteAgent('NI_schedule')
     .then(() => {
       console.log(this);
       return this.settings.client.createAgent({
@@ -304,7 +390,8 @@ export var ActionsStore = Reflux.createStore({
           timezone: {type:'timezone'}
         },
         output : ['thermostat'],
-        time_quantum : 5*60
+        time_quantum : 5*60,
+        tree_max_height : 7,
       },
       'NI_schedule')
     })
