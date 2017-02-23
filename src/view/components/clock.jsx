@@ -45,9 +45,6 @@ exports = module.exports = React.createClass({
   },
   render: function() {
     var workDay = this.props.time.getDay();
-    var leading = "Working day";
-    if( workDay == 0 || workDay == 6 )
-      leading = "Non working day"
     var date =  this.props.time.getFullYear() + '-' + 
                 ('0' + (this.props.time.getMonth() + 1)).slice(-2) + '-' + 
                 ('0' + this.props.time.getDate()).slice(-2) + 'T' + 
@@ -56,7 +53,7 @@ exports = module.exports = React.createClass({
                 ('0' + this.props.time.getSeconds()).slice(-2);
     return (
       <Well bsSize="small">
-        <h4>{Moment(date).format('dddd DD/MM/YYYY HH:mm:ss')} <small>{leading}</small></h4>
+        <h4>{Moment(date).format('dddd DD/MM/YYYY HH:mm:ss')} </h4>
       </Well>
     )
   }

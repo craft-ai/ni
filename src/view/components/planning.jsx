@@ -66,7 +66,6 @@ exports = module.exports = React.createClass({
         _.map(newData, function(obj){ obj['temperature']=[{value:nextProps.temperature,time:0},{value:null,time:24}] });
       }
       var g0 = this.state.graphs[0];
-      var g1 = this.state.graphs[1];
       if( g0 == null ) {
         g0 = new Dygraphs(
           document.getElementById('working days'),
@@ -92,33 +91,8 @@ exports = module.exports = React.createClass({
             }
           }
         );
-        g1 = new Dygraphs(
-          document.getElementById('non working days'),
-          [[0, 20, null]],
-          {
-            valueRange: [10, 30],
-            rightGap: 20,
-            labels: [ 'time', 'setting', 'T'],
-            connectSeparatedPoints: true,
-            drawGapEdgePoints: true,
-            showLabelsOnHighlight: false,
-            fillGraph: true,
-            drawPoints: true,
-            pointSize: 4,
-            colors: ['#FF5000', 'grey'],
-            series: {
-              setting: {
-                strokeWidth: 3,
-              },
-              T: {
-                strokeWidth: 1
-              }
-            }
-          }
-        );
-
       }
-      this.setState({graphs: [g0,g1], day: time[0], hour: time[1], data: newData, time:Math.floor(this.props.onGetTime().getTime()/60000)});
+      this.setState({graphs: [g0], day: time[0], hour: time[1], data: newData, time:Math.floor(this.props.onGetTime().getTime()/60000)});
     }
   },
   shouldComponentUpdate: function(nextProps) {

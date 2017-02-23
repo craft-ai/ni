@@ -1,4 +1,5 @@
 var craftai = require('craft-ai').createClient;
+import chatHistoryStore from '../view/components/chatHistoryStore';
 
 export default function createThermostat() {
   let AGENT_Temperature = 'NI_temperature';
@@ -163,6 +164,7 @@ export default function createThermostat() {
           //console.log( 'Estimated time to get from : ', roomTemperature, ' to : ',next.consigne,' is ', duration);
           if( next.time-duration <= now.getTime() /1000 && next.consigne != this.internalTher) {
             console.log( "settings internal", next.consigne );
+            chatHistoryStore.addCraftMessage( "Setting expected temperature to get "+ next.consigne + " in "+ duration + " seconds (" + new Date( now.getTime()+ duration * 1000 ) + ")"   )
             this.setInternal(now, next.consigne, realTemp)
           }
           if( next.time <= now.getTime() / 1000){
@@ -186,6 +188,7 @@ export default function createThermostat() {
         )
         if( Math.floor(when.getTime()/1000)-this.lastTimeHuman > 60*30 ) {
           if(decision.decision.thermostat != this.thermostat) {
+            chatHistoryStore.addCraftMessage( "Settting consigne temperature to "+decision.decision.thermostat )
             this.setThermostat(when,decision.decision.thermostat, realTemp, false);
             this.addContext(when);
           }

@@ -113,7 +113,7 @@ export default React.createClass({
             <ChatHistory id="hist" placeholder='No message...'/>
           </Col>
         </Row>
-
+     
       </Grid>
     );
   },
