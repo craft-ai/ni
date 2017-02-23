@@ -13,6 +13,8 @@ export default function createThermostat() {
     planning : [],
     ready : false,
     lastTimeHuman: 0,
+    lastTimeTempChanged : new Date(),
+
     // add a new event in the schedule
     addContext : function(when) {
       let now = new Date( when.getTime() );
@@ -107,7 +109,8 @@ export default function createThermostat() {
       }
       return duration;
     },
-    computePlanning : function( today ) {
+    computePlanning : function( when ) {
+      let today = new Date( when )
       return this.sendContexts()
       .then( () => {
         this.client.getAgentDecisionTree(
@@ -160,9 +163,10 @@ export default function createThermostat() {
           console.log( 'Estimated time to get from : ', roomTemperature, ' to : ',next.consigne,' is ', duration);
           if( next.time-duration <= now.getTime() /1000 ) {
             console.log( "settings internal", next.consigne );
-            this.onSetInternal(next.consigne)
+            this.setInternal(now, next.consigne)
           }
           if( next.time <= now.getTime() / 1000){
+            console.log( "removing ", next.time, now.getTime()/1000 );
             this.planning.pop()
           }
         }
@@ -195,14 +199,16 @@ export default function createThermostat() {
         this.lastTimeHuman = Math.floor(when.getTime()/1000);
       }
       this.thermostat = t;
-      this.setInternal(t);
+      this.setInternal(when,t);
     },
 
-    setInternal : function(t) {
+    setInternal : function(when,t) {
+      this.lastTimeTempChanged.setTime( when );
       this.internalTher = t;
     },
 
-    init : function() {
+    init : function( now ) {
+      this.lastTimeTempChanged.setTime( now )
       return instance.client.deleteAgent(AGENT_Schedule)
       .then(() => {
         return instance.client.createAgent({

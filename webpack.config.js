@@ -15,17 +15,18 @@ module.exports = {
     publicPath: '/'
   },
   plugins: [
-    new webpack.DefinePlugin({
-        '__CRAFT_TOKEN': `"${process.env.CRAFT_TOKEN}"`,
-        '__CRAFT_URL': `"${process.env.CRAFT_URL}"`,
-        '__CRAFT_OWNER': `"${process.env.CRAFT_OWNER}"`,
-    }),
+
     new webpack.HotModuleReplacementPlugin(),
     new webpack.NoErrorsPlugin(),
     new webpack.ProvidePlugin({
             'es6-promise': 'es6-promise',
             'fetch': 'imports?this=>global!exports?global.fetch!whatwg-fetch'
-        })
+        }),
+    new webpack.DefinePlugin({
+        '__CRAFT_TOKEN': `"${process.env.CRAFT_TOKEN}"`,
+        '__CRAFT_URL': `"${process.env.CRAFT_URL}"`,
+        '__CRAFT_OWNER': `"${process.env.CRAFT_OWNER}"`,
+    }),
   ],
   resolve: {
     alias: {

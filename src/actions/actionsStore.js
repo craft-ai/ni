@@ -37,7 +37,6 @@ export var ActionsStore = Reflux.createStore({
     realTempOrig : 11.0,
     heater : true,
     disabledUI : false,
-    lastTimeTempChanged : initialTime(),
   },
   onStopTime : function() {
     this.settings.automaticTime = false;
@@ -86,10 +85,10 @@ export var ActionsStore = Reflux.createStore({
     this.settings.temperature = newTemp;
 
     if( Math.abs( this.settings.realTemp-this.settings.realTempOrig) >= 1 ) {
-      let prev = this.settings.lastTimeTempChanged.getTime()
+      let prev = this.settings.smart.lastTimeTempChanged.getTime()
       let now = this.settings.time.getTime()
       this.settings.smart.sendLearningTemp(this.settings.time,this.settings.realTempOrig,this.settings.realTemp, prev, now);
-      this.settings.lastTimeTempChanged.setTime( this.settings.time );
+      this.settings.smart.lastTimeTempChanged.setTime( this.settings.time );
       this.settings.realTempOrig = this.settings.realTemp;
     }
   },
@@ -148,7 +147,7 @@ export var ActionsStore = Reflux.createStore({
     this.settings.temperature = t;
     this.settings.realTemp = t;
     this.settings.realTempOrig = t;
-    this.settings.lastTimeTempChanged = new Date(this.settings.time);
+    this.settings.smart.lastTimeTempChanged = new Date(this.settings.time);
     this.trigger(this.settings);
   },
   getThermostat: function() {
@@ -160,21 +159,20 @@ export var ActionsStore = Reflux.createStore({
     this.trigger(this.settings);
   },
   onSetInternal: function(t) {
-    this.settings.lastTimeTempChanged.setTime( this.settings.time );
     this.settings.realTempOrig = this.settings.realTemp;
-    this.settings.smart.setInternal(t);
+    this.settings.smart.setInternal(this.settings.time,t);
     if( this.settings.heater == true )
     {
       this.settings.degreePerMilli = 0;
-      if( this.settings.temperature < this.settings.internalTher )
+      if( this.settings.temperature < this.settings.smart.internalTher )
         this.settings.degreePerMilli = 1.0/(20.0*60.0*1000.0); // 1 degree for 20 minutes;
-      if( this.settings.temperature > this.settings.internalTher )
+      if( this.settings.temperature > this.settings.smart.internalTher )
         this.settings.degreePerMilli = -1.0/(15.0*60.0*1000.0); // 1 degree for 15 minutes;;
       this.settings.degreePerMilli *= Math.random()*0.1 + 0.95;
     }
   },
   onInitMe: function() {
-    this.settings.smart.init()
+    this.settings.smart.init( this.settings.time )
     .then( () => {
       this.settings.ready = true;
       this.trigger(this.settings);
