@@ -21,7 +21,7 @@
     "webpack": "1.12.0"
   },
   "dependencies": {
-    "craft-ai": "git://github.com/craft-ai/craft-ai-client-js.git#feature/regression_trees",
+    "craft-ai": "^0.1.21",
     "debug": "2.1.3",
     "dotenv": "^4.0.0",
     "dygraphs": "1.1.1",

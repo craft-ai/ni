@@ -1,5 +1,7 @@
+import chatHistoryStore from '../view/components/chatHistoryStore';
 var createThermostat = require('./smartThermostat');
 var Reflux = require('reflux');
+var format = require('string-format');
 
 function initialTime() {
   var t = new Date();
@@ -154,6 +156,7 @@ export var ActionsStore = Reflux.createStore({
     return this.settings.smart.thermostat;
   },
   onSetThermostat: function(t, manual=true) {
+    chatHistoryStore.addCraftMessage( format( "Settting expected temperature to : "+ t ))
     this.settings.smart.setThermostat(this.settings.time,t,manual);
     this.onSetInternal(t);
     this.trigger(this.settings);
@@ -174,7 +177,7 @@ export var ActionsStore = Reflux.createStore({
   onInitMe: function() {
     this.settings.smart.init( this.settings.time )
     .then( () => {
-      this.settings.ready = true;
+      this.settings.ready = true;      
       this.trigger(this.settings);
     })
 
