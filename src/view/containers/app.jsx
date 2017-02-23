@@ -58,11 +58,11 @@ export default React.createClass({
   },
   start:function() {
     devices.initMe();
-    this.setState( {ready: true} );
+    this.setState({ ready: true });
   },
 
   render: function() {
-    if( this.state.ready == false )
+    if( this.state.ready == false || this.state.actionsStore.ready == false )
       return (
         <Grid>
           <Row>
@@ -85,7 +85,7 @@ export default React.createClass({
         </Row>
         <Row>
           <Col xs={6} style={{ height: 350, width: 310 }}>
-            <Meter disabled={this.isUIDisabled()} temperature={this.state.actionsStore.temperature} setting={this.state.actionsStore.thermostat} onThermostatChange={(th)=>{this.setThermostat(th);}}/>
+            <Meter disabled={this.isUIDisabled()} temperature={this.state.actionsStore.temperature} setting={this.state.actionsStore.smart.thermostat} onThermostatChange={(th)=>{this.setThermostat(th);}}/>
           </Col>
           <Col xs={6}>
             <form>

@@ -1,5 +1,7 @@
 var path = require('path');
 var webpack = require('webpack');
+var dotenv = require('dotenv');
+dotenv.load();
 
 module.exports = {
   devtool: 'eval',
@@ -13,6 +15,11 @@ module.exports = {
     publicPath: '/'
   },
   plugins: [
+    new webpack.DefinePlugin({
+        '__CRAFT_TOKEN': `"${process.env.CRAFT_TOKEN}"`,
+        '__CRAFT_URL': `"${process.env.CRAFT_URL}"`,
+        '__CRAFT_OWNER': `"${process.env.CRAFT_OWNER}"`,
+    }),
     new webpack.HotModuleReplacementPlugin(),
     new webpack.NoErrorsPlugin(),
     new webpack.ProvidePlugin({

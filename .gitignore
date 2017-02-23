@@ -3,3 +3,4 @@ node_modules
 bts
 out
 *.log
+.env
