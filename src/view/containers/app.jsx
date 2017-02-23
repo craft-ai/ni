@@ -1,7 +1,6 @@
 import '../static/circle.css';
 import { ActionsStore, devices } from '../../actions/actionsStore';
 import { ButtonGroup, Button, Modal, Input, Grid, Row, Col } from 'react-bootstrap';
-import { SH_USER, SH_PROJECT, SH_VERSION, SH_APP_ID, SH_APP_SECRET } from '../../constant';
 import ChatHistory from '../components/chatHistory';
 import Clock from '../components/clock';
 import Meter from '../components/meter';
