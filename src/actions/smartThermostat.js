@@ -70,7 +70,7 @@ export default function createThermostat() {
     // filter out events ( usually too closed to each others of if human contradicts)
     filterEvents : function() {
       return new Promise(resolve => {
-        console.log( this.events );
+        //console.log( this.events );
         resolve();
       });
     },
@@ -84,7 +84,7 @@ export default function createThermostat() {
       else if( goal < current ) {
         intermediate = current - 1;
       }
-      console.log( 'going from ',current, 'to', goal );
+      //console.log( 'going from ',current, 'to', goal );
       while( goal != current ) {
         let ctx = {
             thermostat:thermostat,
@@ -92,7 +92,7 @@ export default function createThermostat() {
             goalTemperature: intermediate,
             diff:intermediate-current
         }
-        console.log(ctx);
+        //console.log(ctx);
         let decision = craftai.decide(
           this.treeModel,
           ctx
@@ -154,16 +154,16 @@ export default function createThermostat() {
       })
     },
 
-    checkPrediction : function(now, roomTemperature) {
+    checkPrediction : function(now, roomTemperature, realTemp) {
       // check if IA should change the internal
       if( this.treeModel != null ) {
         if( this.planning.length > 0 ) {
           let next = this.planning[this.planning.length-1];
           let duration = this.durationForDelta( next.consigne, roomTemperature, this.internalTher );
-          console.log( 'Estimated time to get from : ', roomTemperature, ' to : ',next.consigne,' is ', duration);
-          if( next.time-duration <= now.getTime() /1000 ) {
+          //console.log( 'Estimated time to get from : ', roomTemperature, ' to : ',next.consigne,' is ', duration);
+          if( next.time-duration <= now.getTime() /1000 && next.consigne != this.internalTher) {
             console.log( "settings internal", next.consigne );
-            this.setInternal(now, next.consigne)
+            this.setInternal(now, next.consigne, realTemp)
           }
           if( next.time <= now.getTime() / 1000){
             console.log( "removing ", next.time, now.getTime()/1000 );
@@ -173,7 +173,7 @@ export default function createThermostat() {
       }
     },
 
-    checkConsigne : function(when) {
+    checkConsigne : function(when, realTemp) {
       // check if IA should change the thermostat
       if( this.treeSchedule != null ) {
         let now =Math.floor(when.getTime() /1000)+2
@@ -184,25 +184,25 @@ export default function createThermostat() {
           },
           new craftai.Time(now)
         )
-        console.log("expected temp ",decision.decision.thermostat, 'at ', when, now,  decision);
         if( Math.floor(when.getTime()/1000)-this.lastTimeHuman > 60*30 ) {
           if(decision.decision.thermostat != this.thermostat) {
-            this.setThermostat(when,decision.decision.thermostat, false);
+            this.setThermostat(when,decision.decision.thermostat, realTemp, false);
             this.addContext(when);
           }
         }
       }
     },
 
-    setThermostat: function(when, t, manual=true) {
+    setThermostat: function(when, t, realTemp, manual=true) {
       if( manual == true ) {
         this.lastTimeHuman = Math.floor(when.getTime()/1000);
       }
       this.thermostat = t;
-      this.setInternal(when,t);
+      this.setInternal(when,t, realTemp);
     },
 
-    setInternal : function(when,t) {
+    setInternal : function(when,t, realTemp) {
+      this.realTempOrig = realTemp;
       this.lastTimeTempChanged.setTime( when );
       this.internalTher = t;
     },

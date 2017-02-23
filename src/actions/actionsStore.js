@@ -36,7 +36,6 @@ export var ActionsStore = Reflux.createStore({
     presence: false,
     degreePerMilli : 0,
     realTemp : 11.0,
-    realTempOrig : 11.0,
     heater : true,
     disabledUI : false,
   },
@@ -86,12 +85,12 @@ export var ActionsStore = Reflux.createStore({
     let newTemp = Math.floor( this.settings.realTemp + 0.5);
     this.settings.temperature = newTemp;
 
-    if( Math.abs( this.settings.realTemp-this.settings.realTempOrig) >= 1 ) {
+    if( Math.abs( this.settings.realTemp-this.settings.smart.realTempOrig) >= 1 ) {
       let prev = this.settings.smart.lastTimeTempChanged.getTime()
       let now = this.settings.time.getTime()
-      this.settings.smart.sendLearningTemp(this.settings.time,this.settings.realTempOrig,this.settings.realTemp, prev, now);
+      this.settings.smart.sendLearningTemp(this.settings.time,this.settings.smart.realTempOrig,this.settings.realTemp, prev, now);
       this.settings.smart.lastTimeTempChanged.setTime( this.settings.time );
-      this.settings.realTempOrig = this.settings.realTemp;
+      this.settings.smart.realTempOrig = this.settings.realTemp;
     }
   },
   onAddTime: function( amount, check ) {
@@ -116,8 +115,8 @@ export var ActionsStore = Reflux.createStore({
       })
     }
 
-    this.settings.smart.checkPrediction(this.settings.time, this.settings.temperature);
-    this.settings.smart.checkConsigne(this.settings.time);
+    this.settings.smart.checkPrediction(this.settings.time, this.settings.temperature, this.settings.realTemp);
+    this.settings.smart.checkConsigne(this.settings.time, this.settings.realTemp);
 
     this.trigger(this.settings);
   },
@@ -148,7 +147,7 @@ export var ActionsStore = Reflux.createStore({
       t = 30;
     this.settings.temperature = t;
     this.settings.realTemp = t;
-    this.settings.realTempOrig = t;
+    this.settings.smart.realTempOrig = t;
     this.settings.smart.lastTimeTempChanged = new Date(this.settings.time);
     this.trigger(this.settings);
   },
@@ -157,13 +156,12 @@ export var ActionsStore = Reflux.createStore({
   },
   onSetThermostat: function(t, manual=true) {
     chatHistoryStore.addCraftMessage( format( "Settting expected temperature to : "+ t ))
-    this.settings.smart.setThermostat(this.settings.time,t,manual);
+    this.settings.smart.setThermostat(this.settings.time,t, this.settings.realTemp,manual);
     this.onSetInternal(t);
     this.trigger(this.settings);
   },
   onSetInternal: function(t) {
-    this.settings.realTempOrig = this.settings.realTemp;
-    this.settings.smart.setInternal(this.settings.time,t);
+    this.settings.smart.setInternal(this.settings.time,t, this.settings.realTemp);
     if( this.settings.heater == true )
     {
       this.settings.degreePerMilli = 0;
