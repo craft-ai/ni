@@ -12,6 +12,7 @@ export default function createThermostat() {
     treeSchedule: null,
     treeModel: null,
     planning : [],
+    persistentPlanning : [],
     ready : false,
     lastTimeHuman: 0,
     lastTimeTempChanged : new Date(),
@@ -132,7 +133,12 @@ export default function createThermostat() {
           this.treeModel = tree;
           let consigne=this.thermostat;
           this.planning = []
+          this.persistentPlanning = []
           let thisDay = today.getDay();
+          this.persistentPlanning.push({
+            consigne:this.thermostat,
+            time:Math.floor(today.getTime() /1000),
+            confidence:1})
           while( today.getDay() == thisDay ) {
             let now =Math.floor(today.getTime() /1000)+2
             let decision = craftai.decide(
@@ -143,12 +149,23 @@ export default function createThermostat() {
               new craftai.Time(now)
             )
             if( decision.decision.thermostat!=consigne ) {
-              this.planning.push({consigne:decision.decision.thermostat,time:now-2})
+              this.planning.push({
+                consigne:decision.decision.thermostat,
+                time:now-2})
+              this.persistentPlanning.push({
+                consigne:decision.decision.thermostat,
+                time:now-2,
+                confidence:decision.decision.confidence})
               consigne=decision.decision.thermostat;
             }
             // add 1 minute
             today.setTime( today.getTime()+1000*60 );
           }
+          this.persistentPlanning.push({
+            consigne:consigne,
+            time:Math.floor(today.getTime() /1000),
+            confidence:1
+          })
           this.planning.reverse()
           console.log("planning:",this.planning)
         })

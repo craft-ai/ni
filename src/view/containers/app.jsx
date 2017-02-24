@@ -4,9 +4,10 @@ import { ButtonGroup, Button, Modal, Input, Grid, Row, Col } from 'react-bootstr
 import ChatHistory from '../components/chatHistory';
 import Clock from '../components/clock';
 import Meter from '../components/meter';
-import Planning from '../components/planning';
+import Graph from '../components/Graph';
 import React from 'react';
 import Reflux from 'reflux';
+import _ from 'lodash';
 
 export default React.createClass({
   mixins: [Reflux.connect(ActionsStore, 'actionsStore')],
@@ -40,6 +41,7 @@ export default React.createClass({
     if( this.state.actionsStore.automaticTime === false )
       return;
     this.addTime(5*60*1000, true);
+
     setTimeout(()=>{this.handleTime()},200);
   },
   handleTimeInit: function(amount) {
@@ -50,6 +52,24 @@ export default React.createClass({
   },
   getTime: function() {
     return this.state.actionsStore.time;
+  },
+
+  getPlanning : function() {
+    let today = new Date( this.state.actionsStore.time );
+    today.setMinutes(0)
+    today.setHours(0)
+    today = Math.floor(today.getTime() /1000);// in seonds
+    let prevConsigne = undefined;
+    let planning = [[0,undefined,undefined]];
+    _.forEach( this.state.actionsStore.smart.persistentPlanning, (event) => {
+      let timeSinceMidnight = event.time-today;
+      timeSinceMidnight /= 60*60; // in hoursa
+      planning.push([timeSinceMidnight-.01,prevConsigne,undefined]);
+      prevConsigne=event.consigne;
+      planning.push([timeSinceMidnight,event.consigne,undefined]);
+    });
+    planning.push([24,prevConsigne,undefined])
+    return planning;
   },
 
   isUIDisabled: function() {
@@ -113,7 +133,8 @@ export default React.createClass({
             <ChatHistory id="hist" placeholder='No message...'/>
           </Col>
         </Row>
-     
+        <Graph id="planning" values={this.getPlanning()}/>
+        <Graph id="temp" values={this.state.actionsStore.dailyTemperature}/>
       </Grid>
     );
   },

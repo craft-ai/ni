@@ -26,7 +26,7 @@ function workday(day) {
 }
 exports = module.exports = React.createClass({
   getInitialState: function() {
-    
+
     var time = formatTime(this.props.onGetTime());
     var data = {workday:{planning:[{value:null,time:0},{value:null,time:1440}],temperature:[{value:null,time:0},{value:null,time:24}]},
                 weekend:{planning:[{value:null,time:0},{value:null,time:1440}],temperature:[{value:null,time:0},{value:null,time:24}]}};
@@ -129,10 +129,10 @@ exports = module.exports = React.createClass({
       let planningArray = [];
       let temperatureArray = [];
       let tempo = undefined;
-      _.each(Obj['planning'], function(list){ 
-        if(!_.isUndefined(tempo)) 
-          planningArray.push([(list['time']-1)/60, tempo, null]); 
-        planningArray.push([list['time']/60, list['value'], null]); 
+      _.each(Obj['planning'], function(list){
+        if(!_.isUndefined(tempo))
+          planningArray.push([(list['time']-1)/60, tempo, null]);
+        planningArray.push([list['time']/60, list['value'], null]);
         tempo = list.value;
       });
       _.each(Obj['temperature'], function(list){ temperatureArray.push([list['time'], null, list['value']])});
@@ -151,13 +151,13 @@ exports = module.exports = React.createClass({
       });
       let sortedData = _.sortBy(planningArray, function(arr){return arr[0];});
 
-        
+
       let g = self.state.graphs[id];
       //console.log("graph"+g )
       document.getElementById(idH).style.pointerEvents = 'none';
       //console.log('sortedData =', sortedData);
       if( g != null )
-        g.updateOptions( {'file':sortedData } );      
+        g.updateOptions( {'file':sortedData } );
     });
   },
   timeChanged : function(evt) {
@@ -194,7 +194,7 @@ exports = module.exports = React.createClass({
         <div className="planning" style={{marginTop:'-200px', height: '200px'}}>
           <div className="planning day"></div>
           <div className="planning chart" >
-            <div style={{width: '44px'}}></div><input id="input" className="time" type="range" value={hour} min="0" max="2400" onChange={(evt)=>this.timeChanged(evt)}/>          
+            <div style={{width: '44px'}}></div><input id="input" className="time" type="range" value={hour} min="0" max="2400" onChange={(evt)=>this.timeChanged(evt)}/>
             </div>
         </div>
       </div>

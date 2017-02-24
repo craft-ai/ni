@@ -38,6 +38,7 @@ export var ActionsStore = Reflux.createStore({
     realTemp : 11.0,
     heater : true,
     disabledUI : false,
+    dailyTemperature : [[0,undefined,undefined],[24,undefined,undefined]]
   },
   onStopTime : function() {
     this.settings.automaticTime = false;
@@ -45,7 +46,6 @@ export var ActionsStore = Reflux.createStore({
     this.trigger(this.settings);
   },
   localAddTime: function( amount ) {
-
     var today= this.settings.time;
     today.setTime( today.getTime()+amount );
     // we just swith days, retrieve the tree
@@ -109,6 +109,7 @@ export var ActionsStore = Reflux.createStore({
     // -compute the planning
     // -download the heating model tree
     if( today.getDay() != this.settings.time.getDay() ) {
+      this.settings.dailyTemperature = [[0,this.settings.realTemp,undefined],[24,undefined,undefined]]
       this.settings.smart.filterEvents()
       .then( () => {
         this.settings.smart.computePlanning(this.settings.time)
@@ -117,7 +118,12 @@ export var ActionsStore = Reflux.createStore({
 
     this.settings.smart.checkPrediction(this.settings.time, this.settings.temperature, this.settings.realTemp);
     this.settings.smart.checkConsigne(this.settings.time, this.settings.realTemp);
-
+    let h = this.settings.time.getHours();
+    let m = this.settings.time.getMinutes();
+    this.settings.dailyTemperature.splice(
+      this.settings.dailyTemperature.length-1,
+      0,
+      [h+m/60,this.settings.realTemp,undefined]);
     this.trigger(this.settings);
   },
   onStartTime : function() {
@@ -175,7 +181,7 @@ export var ActionsStore = Reflux.createStore({
   onInitMe: function() {
     this.settings.smart.init( this.settings.time )
     .then( () => {
-      this.settings.ready = true;      
+      this.settings.ready = true;
       this.trigger(this.settings);
     })
 
